@@ -45,5 +45,30 @@ When in doubt look to the [Google](https://google.github.io/styleguide/pyguide.h
 3. We will test.
 4. If something has a dependency, installation instructions will be __EXPLICITLY__ included as a README
 
+# Directory Structure
+
+The luddite directory is the luddite package and contains all of the sub packages.
+
+The programs directory will contain individual directories for each lab specific programs/workflows that we create. These are for programs that we believe as a lab will be used largely by other people and hopefully will be actively maintained. 
+
+├── ISSUE_TEMPLATE
+├── luddite/
+│   ├── __init__.py
+│   ├── package/
+│	│	├── module.py
+│	│	└──__init__.py
+│   ├── package/
+│	│	├── module.py
+│	│	└──__init__.py
+│   └── package/
+│		├── module.py
+│		└──__init__.py
+│
+├── programs/
+│   └── program_name/
+│		├── program.py
+│		└── README.md
+│
+└── README.md
 
 
