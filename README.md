@@ -57,19 +57,19 @@ The programs directory will contain individual directories for each lab specific
 ├── luddite/
 │   ├── __init__.py
 │   ├── package/
-│	│	├── module.py
-│	│	└──__init__.py
+│  	│	  ├── module.py
+│	  │	  └──__init__.py
 │   ├── package/
-│	│	├── module.py
-│	│	└──__init__.py
+│	  │	  ├── module.py
+│	  │	  └──__init__.py
 │   └── package/
-│		├── module.py
-│		└──__init__.py
+│		     ├── module.py
+│		     └──__init__.py
 │
 ├── programs/
 │   └── program_name/
-│		├── program.py
-│		└── README.md
+│		     ├── program.py
+│		     └── README.md
 │
 └── README.md
 
