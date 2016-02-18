@@ -1,0 +1,33 @@
+# Type of Issue : 
+	New program ?
+	  --or--
+	New module ?
+
+# For New Programs : 
+
+	Identify what file inputs are.
+
+	What is the workflow supposed to do ? (answer a question , vizualize a result , transform data ?)
+
+	How will it function: Completely (and succinctly) describe the process by which data will be processed and analyzed.
+
+	If some functionality already exsits within the luddite package - identify it explicitly. 
+
+	If funcionality is NEEDED , describe it.
+
+
+# For new modules :
+	
+	Identify what the module is supposed to do. (i.e. provide methods for clustering , provide interface to program 'X')
+
+	Identify what program/workflow this module is needed for, or do a damn good job justifing its creation.
+
+	Identify dependencies.
+
+	Identify inputs.
+
+
+
+
+
+
