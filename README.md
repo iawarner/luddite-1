@@ -21,14 +21,14 @@ In general - please just write clean , easily readable code. Stick to the zen of
 6. Sparse is better than dense.
 7. Readability counts.
 8. Special cases aren't special enough to break the rules.
-  a. __Although practicality beats purity.__
+  * __Although practicality beats purity.__
 9. Errors should never pass silently.
-  a. __Unless explicitly silenced.__
+  * __Unless explicitly silenced.__
 10. In the face of ambiguity, refuse the temptation to guess.
 11. There should be one-- and preferably only one --obvious way to do it.
-  a.__Although that way may not be obvious at first unless you're Dutch.__
+  * __Although that way may not be obvious at first unless you're Dutch.__
 12. Now is better than never.
-  a.__Although never is often better than right now.__
+  * __Although never is often better than right now.__
 13. If the implementation is hard to explain, it's a bad idea.
 14. If the implementation is easy to explain, it may be a good idea.
 15. NameSpaces are one honking great idea -- let's do more of those!
