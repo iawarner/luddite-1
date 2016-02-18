@@ -52,6 +52,7 @@ The luddite directory is the luddite package and contains all of the sub package
 
 The programs directory will contain individual directories for each lab specific programs/workflows that we create. These are for programs that we believe as a lab will be used largely by other people and hopefully will be actively maintained. 
 
+```
 ├── ISSUE_TEMPLATE
 ├── luddite/
 │   ├── __init__.py
@@ -72,4 +73,4 @@ The programs directory will contain individual directories for each lab specific
 │
 └── README.md
 
-
+```
