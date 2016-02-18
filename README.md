@@ -55,14 +55,14 @@ The programs directory will contain individual directories for each lab specific
 ```
 ├── ISSUE_TEMPLATE
 ├── luddite/
-│   ├── __init__.py
-│   ├── package/
+│   ├── __init__.py
+│   ├── package/
 │  	│	  ├── module.py
 │	  │	  └──__init__.py
-│   ├── package/
+│   ├── package/
 │	  │	  ├── module.py
 │	  │	  └──__init__.py
-│   └── package/
+│   └── package/
 │		     ├── module.py
 │		     └──__init__.py
 │
