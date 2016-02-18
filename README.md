@@ -58,7 +58,7 @@ The programs directory will contain individual directories for each lab specific
 │   ├── __init__.py
 │   ├── package/
 │   |   ├── module.py
-│	  │	  └──__init__.py
+│	  │   └──__init__.py
 │   ├── package/
 │	  │	  ├── module.py
 │	  │	  └──__init__.py
