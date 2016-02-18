@@ -35,10 +35,12 @@ In general - please just write clean , easily readable code. Stick to the zen of
 
 When in doubt look to the [Google](https://google.github.io/styleguide/pyguide.html) Python style guide.
 
-# Interfacing to binaries / other tools
+# Best practices within this package
 
-We will use [pydoit](http://pydoit.org/) instead of system calls. 
-
+1. We will use [pydoit](http://pydoit.org/) instead of system calls. 
+  * If it's a commonly used program - make a specific package for it so other can use it.
+2. We will document as much as possible.
+3. We will test.
 
 
 
