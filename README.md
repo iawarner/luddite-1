@@ -43,7 +43,8 @@ When in doubt look to the [Google](https://google.github.io/styleguide/pyguide.h
   * If it's a commonly used program - make a specific package for it so other can use it.
 2. We will document as much as possible.
 3. We will test.
-4. If something has a dependency, installation instructions will be __EXPLICITLY__ included as a README
+4. If something has a dependency, installation instructions will be __EXPLICITLY__ included as a README.
+5. You will not commit to the master branch directly, fork a copy , do your work , then make a pull request.
 
 # Directory Structure
 
