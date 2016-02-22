@@ -9,6 +9,7 @@ for data in gff_file.getRecord()
     # do a thing
 """
 
+gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)') # regex to parse columns of annotation file
 
 class gffRecord:
     def __init__(self, Seqid, Source, Type, Start, End, Score, Strand, Phase, Attributes):
@@ -33,9 +34,6 @@ class gff3:
             self.f = f
 
     def getRecord(self) :
-
-        gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)') # regex to parse columns of annotation file
-
         for line in self.f :
             gff_matches = gff_regex.search(line) # find regex matches within the gene file
 
