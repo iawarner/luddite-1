@@ -6,7 +6,7 @@ gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\
 
 class gff3(object):
     """
-    A class for parsing gff3 format files
+    A class for parsing gff3 format files.
     """
 
     def __init__ (self, path):
