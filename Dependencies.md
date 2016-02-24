@@ -1,13 +1,16 @@
 #Installing Cython 
+
+sudo pip install cython
+sudo pip install numpy
+
 #Installing parasail
 
 git clone git@github.com:jeffdaily/parasail.git
+./configure
+make 
+make install
+/usr/bin/python setup.py install --prefix=/usr/local
 
-sudo ./configure
-sudo make 
-sudo make install
-PARASAIL_PREFIX=/usr/local/lib/ python setup.py build
-cp build/lib*/parasail.so 
 
 
 
