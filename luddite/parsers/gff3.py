@@ -16,7 +16,7 @@ class gff3(object):
 	def __repr__(self):
 		return '{}'.format(self.file)
 
-    def parse(inc):
+    def parse(line):
         gff_matches  = gff_regex.search(line)
         seqid        = gff_matches.group(1),
         source       = gff_matches.group(2),
