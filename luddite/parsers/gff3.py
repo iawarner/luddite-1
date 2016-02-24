@@ -6,7 +6,7 @@ gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\
 
 class gff3(object):
     """
-    A class for parsing gff3 format files, getRecord returns a generator that generates gffRecord objects
+    A class for parsing gff3 format files
     """
 
     def __init__ (self, path):
@@ -38,7 +38,7 @@ class gff3(object):
                 'phase'      : phase,
                 'attributes' : attributes}
 
-#    def PacBio_Parser():
+#    def PacBio_parse():
         # do this later
         # parse attributes for more specific items
 
