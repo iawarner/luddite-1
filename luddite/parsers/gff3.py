@@ -2,7 +2,7 @@
 
 from openany import openany
 
-gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)') # regex to parse columns of annotation file
+gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)')
 
 class gff3(object):
     """
@@ -17,16 +17,16 @@ class gff3(object):
 		return '{}'.format(self.file)
 
     def parse(inc):
-        gff_matches = gff_regex.search(line) # find regex matches within the gene file
-        seqid        = gff_matches.group(1), # Seqid
-        source       = gff_matches.group(2), # Source
-        feature_type = gff_matches.group(3), # Type
-        start        = gff_matches.group(4), # Start
-        end          = gff_matches.group(5), # End
-        score        = gff_matches.group(6), # Score
-        strand       = gff_matches.group(7), # Strand
-        phase        = gff_matches.group(8), # Phase
-        attributes   = gff_matches.group(9)) # Attributes
+        gff_matches  = gff_regex.search(line)
+        seqid        = gff_matches.group(1),
+        source       = gff_matches.group(2),
+        feature_type = gff_matches.group(3),
+        start        = gff_matches.group(4),
+        end          = gff_matches.group(5),
+        score        = gff_matches.group(6),
+        strand       = gff_matches.group(7),
+        phase        = gff_matches.group(8),
+        attributes   = gff_matches.group(9))
 
         return {'seqid'      : seqid,
                 'source'     : source,
@@ -40,7 +40,7 @@ class gff3(object):
 
 #    def PacBio_Parser():
         # do this later
-        # parse self.attributes for more specific items
+        # parse attributes for more specific items
 
     if __name__ == '__main__':
     	# gff3 = gff3('file_name') # for testing
