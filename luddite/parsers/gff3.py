@@ -16,6 +16,10 @@ class gff3(object):
 	def __repr__(self):
 		return '{}'.format(self.file)
 
+    def read(self):
+        for line in self.file :
+            yield parse(line)
+
     def parse(line):
         gff_matches  = gff_regex.search(line)
         seqid        = gff_matches.group(1),
@@ -47,5 +51,5 @@ class gff3(object):
             # only will run things here if script is run directly
             # will not run if called via import
 
-    for record in gff3.readline():
+    for record in gff3.read():
     	print '{}'.format(record)
