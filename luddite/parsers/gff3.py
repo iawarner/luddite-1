@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from openany import openany
+from re import * # import regex functions
 
 gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)')
 
@@ -10,46 +11,48 @@ class gff3(object):
     """
 
     def __init__ (self, path):
-		self.file = openany(path)
-		self.path = path
+        self.file = openany(path)
+        self.path = path
 
-	def __repr__(self):
-		return '{}'.format(self.file)
+    def __repr__(self):
+        return '{}'.format(self.file)
 
     def read(self):
         for line in self.file :
-            yield parse(line)
+            if line[0]=='>': # once the fasta section in the annotation is reached
+                break
+            elif line[0]!='#': # skip header lines
+                yield parse(line)
 
-    def parse(line):
-        gff_matches  = gff_regex.search(line)
-        seqid        = gff_matches.group(1),
-        source       = gff_matches.group(2),
-        feature_type = gff_matches.group(3),
-        start        = gff_matches.group(4),
-        end          = gff_matches.group(5),
-        score        = gff_matches.group(6),
-        strand       = gff_matches.group(7),
-        phase        = gff_matches.group(8),
-        attributes   = gff_matches.group(9))
+def parse(line):
+    gff_matches  = gff_regex.search(line)
+    seqid        = gff_matches.group(1)
+    source       = gff_matches.group(2)
+    feature_type = gff_matches.group(3)
+    start        = gff_matches.group(4)
+    end          = gff_matches.group(5)
+    score        = gff_matches.group(6)
+    strand       = gff_matches.group(7)
+    phase        = gff_matches.group(8)
+    attributes   = gff_matches.group(9)
 
-        return {'seqid'      : seqid,
-                'source'     : source,
-                'type'       : feature_type,
-                'start'      : start,
-                'end'        : end,
-                'score'      : score,
-                'strand'     : strand,
-                'phase'      : phase,
-                'attributes' : attributes}
+    return {'seqid'      : seqid,
+            'source'     : source,
+            'type'       : feature_type,
+            'start'      : start,
+            'end'        : end,
+            'score'      : score,
+            'strand'     : strand,
+            'phase'      : phase,
+            'attributes' : attributes}
 
 #    def PacBio_parse():
         # do this later
         # parse attributes for more specific items
 
-    if __name__ == '__main__':
-    	# gff3 = gff3('file_name') # for testing
-            # only will run things here if script is run directly
-            # will not run if called via import
-
-    for record in gff3.read():
-    	print '{}'.format(record)
+if __name__ == '__main__':
+    gff = gff3('/Users/Marina/Desktop/test.gff') # for testing
+        # only will run things here if script is run directly
+        # will not run if called via import
+    for record in gff.read():
+        print '{}'.format(record)
