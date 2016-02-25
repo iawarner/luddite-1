@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from openany import openany
-from re import * # import regex functions
+from re import *
 
 gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)')
 
@@ -19,9 +19,9 @@ class gff3(object):
 
     def read(self):
         for line in self.file :
-            if line[0]=='>': # once the fasta section in the annotation is reached
+            if line[0]=='>':
                 break
-            elif line[0]!='#': # skip header lines
+            elif line[0]!='#':
                 yield parse(line)
 
 def parse(line):
@@ -46,13 +46,7 @@ def parse(line):
             'phase'      : phase,
             'attributes' : attributes}
 
-#    def PacBio_parse():
-        # do this later
-        # parse attributes for more specific items
-
 if __name__ == '__main__':
-    gff = gff3('/Users/Marina/Desktop/test.gff') # for testing
-        # only will run things here if script is run directly
-        # will not run if called via import
+    gff = gff3('/Users/Marina/Desktop/test.gff')
     for record in gff.read():
         print '{}'.format(record)
