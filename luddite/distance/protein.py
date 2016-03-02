@@ -3,6 +3,10 @@ import parasail
 """
 parasail function naming conventions:
 
+general call format:
+
+results = parasail.function(query , target , open penalty , gap penalty, matrix)	
+
 Pairwise Comparisons:
 
 { required }
@@ -44,7 +48,7 @@ Last Row / Column  of Named Table
 
 General usage 
 
-results = parasail.function(sequence , sequence , open penalty , gap penalty, matrix)	
+
 
 matrix is one of :
 parasail.blosum+[30,35,40,45,50,55,60,52,65,70,75,80,85,90,100]
