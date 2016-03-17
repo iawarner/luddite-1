@@ -13,11 +13,7 @@ uniprotPrevious = '/pub/databases/uniprot/previous_releases'
 uniprotLICENSE	= 'ftp://ftp.uniprot.org/pub/databases/uniprot/LICENSE'
 uniprotTaxonomy = '/pub/databases/uniprot/current_release/knowledgebase/taxonomic_divisions'
 
-try:
-	uniprothost = ftputil.FTPHost('ftp.uniprot.org','anonymous', 'password')
-except FTPError as e:
-	warnings.warn(e)
-	sys.exit()
+
 
 
 
@@ -25,17 +21,35 @@ class uniprot:
 
 	def __init__(self , targetdir = None , version = 'current' , taxonomy = 'complete' , knowledgebase = 'trembl' , dbtype = 'dat' , target_name = None):
 
+		self.source_dir  = None
+		self.target_file_name  = None
+		self.source_file_name = None
+		self.target_dir   = None
+		self.uniprothost = None
+		self.knowledgebase = None
+		self.version = None
+		self.dbtype = None
+		self.taxonomy = None
+		self.target_path = None
+		self.source_path = None
+
+		try:
+			self.uniprothost = ftputil.FTPHost('ftp.uniprot.org','anonymous', 'password')
+		except FTPError as e:
+			warnings.warn(e)
+			sys.exit()
+
 		if targetdir == None :
 			targetdir = os.getcwd()
 		else:
 			if not os.path.exists(targetdir):
 				try :
-					os.makedirs(self.targetdir)
+					os.makedirs(targetdir)
 				except OSError as e:
-					warnings.warn("Couldn't create" , self.targetdir)
+					warnings.warn("Couldn't create" , targetdir)
 					sys.exit(e)
 
-		self.targetdir = os.path.abspath(targetdir)
+		self.target_dir = os.path.abspath(targetdir)
 
 		if knowledgebase == 'trembl' or knowledgebase == 'sprot' :
 			self.knowledgebase = knowledgebase
@@ -45,7 +59,7 @@ class uniprot:
 
 		if version != 'current':
 			raise NotImplementedError, "I'm not dealing with this yet"
-			releases = [string.encode('ascii') for string in uniprothost.listdir(uniprotPrevious)]
+			releases = [string.encode('ascii') for string in self.uniprothost.listdir(uniprotPrevious)]
 			if not version in releases:
 				sys.exit("The version you requested doesn't exist")
 		self.version = version
@@ -57,7 +71,7 @@ class uniprot:
 
 
 		if taxonomy != 'complete':
-			taxa = [string.encode('ascii') for string in uniprothost.listdir(uniprotTaxonomy)]
+			taxa = [string.encode('ascii') for string in self.uniprothost.listdir(uniprotTaxonomy)]
 			if (any(taxonomy in t for t in taxa)):
 				self.taxonomy = taxonomy
 			self.dbtype = 'dat'
@@ -65,15 +79,18 @@ class uniprot:
 			self.taxonomy = taxonomy
 		
 
-
-		self.source_uri = self.set_source()
-		self.target_uri = self.set_target()
-		
 		
 
+		self.source_path  = self.set_source()
+		self.target_path  = self.set_target()
 		
+		
+
+
+
 
 	def set_source(self):
+
 		uri = '' 
 		file = ''
 		if self.version == 'current':
@@ -81,13 +98,13 @@ class uniprot:
 			
 			if self.taxonomy == 'complete':
 				uri += '/complete' 
-				files = uniprothost.listdir(uri)				
+				files = self.uniprothost.listdir(uri)				
 				files = [f for f in files if self.dbtype in f]
 				files = [f for f in files if self.knowledgebase in f]
 
 			else :
 				uri += '/taxonomic_divisions'
-				files = uniprothost.listdir(uri)
+				files = self.uniprothost.listdir(uri)
 				files = [f for f in files if self.taxonomy in f]
 				files = [f for f in files if self.dbtype in f]
 				files = [f for f in files if self.knowledgebase in f]
@@ -96,59 +113,81 @@ class uniprot:
 			raise NotImplementedError, "I'm not dealing with this yet"
 
 		if len(files) > 1 :
-			sys.exit("Couldn't whittle our list down to a single file")
-		self.target_name = files[0]
+			raise TooManyTargets , "I was unable to get to one target"
+		
+		self.source_dir = uri
+		self.source_file_name = files[0]
+		self.target_file_name = files[0]
+
 		return uri + '/' + files[0]
 
 
 	def set_target(self):		
-		return self.targetdir + '/' + self.target_name
+		return self.target_dir + '/' + self.target_file_name
 
 
 	def download(self):
 
-		source_size = uniprothost.path.getsize(self.source_uri)
 		
-		if os.path.exists(self.target_uri):
-			target_size = os.path.getsize(self.target_uri)
+		source_size  = None
+		target_size  = None
+		source_mtime = None
+		target_mtime = None
+
+
+		source_size = self.uniprothost.path.getsize(self.source_path)
+		source_mtime = self.uniprothost.stat(self.source_path).st_mtime
+		
+		if os.path.exists(self.target_path):
+			target_size = os.path.getsize(self.target_path)
+			target_mtime = os.stat(self.target_path).st_mtime
 		else:
 			target_size = -1
+
 
 		if source_size == target_size :
 			pass	
 		elif target_size == -1 : 
-			uniprothost.download(self.source_uri,self.target_uri)
-		else :
-			os.unlink(self.target_uri)
-			uniprothost.download(self.source_uri,self.target_uri)
+			self.uniprothost.download(self.source_path,self.target_path)
+		elif target_mtime > source_mtime:
+			with open (self.target_path , 'ab') as f:
+				if (source_size == f.tell()):
+					pass
+				else:
+					try:
+						""" If this ever gets supported by ftputil rewrite this try """
+						import ftplib
+						ftp = ftplib.FTP(uniprotBaseURI)
+						ftp.login()
+						ftp.cwd(self.source_dir)
+						ftp.retrbinary('RETR %s' % self.target_file_name , f.write , rest=f.tell())
+					except (KeyboardInterrupt, SystemExit):
+						raise
+					except (ftplib.error_reply , ftplib.error_temp , ftplib.error_proto) as error:
+						warnings.warn("Caught an error from ftplib , retry later if it persists raise issue through github!")
+						raise
+					except ftplib.error_perm as error:
+						warnings.warn("Caught a serious error from ftplib, raise an issue now!")
+						raise
+					except :
+						warnings.warn("Continuation download failed for some reason , restarting")
+						os.unlink(self.target_path)
+						self.uniprothost.download(self.source_path,self.target_path)			
 
-		# if source_size == target_size :
-		# 	pass	
-		# elif target_size > source_size: # this should NEVER happen
-		# 	os.unlink(self.target_uri)
-		# 	download(self)
+		elif source_mtime < target_mtime:
+			os.unlink(self.target_path)
+			self.uniprothost.download(self.source_path,self.target_path)
+		else  :
+			os.unlink(self.target_path)
+			self.uniprothost.download(self.source_path,self.target_path)
 
-		# elif target_size < source_size:
-		# 	source_stat = uniprothost.stat(self.source_uri)
-		# 	target_stat = os.stat(self.target_uri)
-			
-		# 	if (source_stat.st_mtime > target_stat.st_mtime):
-		# 		unlink(self.target_uri)
-		# 		download(self)
-		# 	else:
-		# 		with open(self.target_uri , 'ab') as f:
-		# 			if target_size == f.tell():
-		# 				pass
-		# 			else:
-		# 				try:
-		# 					ftp.ret
 
-			
-
-#		uniprothost.download_if_newer()
 		
 
-
+class TooManyTargets(Exception):
+		def __init__(self,message,errors):
+			super(TooManyTargets,self).__init__(message)
+			self.errors = errors
 
 
 
@@ -163,4 +202,5 @@ if __name__ == '__main__':
 
 
 	connect = uniprot()
+	connect.download()
 	pprint (vars(connect))
