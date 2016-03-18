@@ -1,9 +1,8 @@
 import ftputil
 import os
 import sys
-import warnings
 import pprint
-
+import logging
 
 
 
@@ -36,7 +35,7 @@ class uniprot:
 		try:
 			self.uniprothost = ftputil.FTPHost('ftp.uniprot.org','anonymous', 'password')
 		except FTPError as e:
-			warnings.warn(e)
+			logging.warn(e)
 			sys.exit()
 
 		if targetdir == None :
@@ -46,7 +45,7 @@ class uniprot:
 				try :
 					os.makedirs(targetdir)
 				except OSError as e:
-					warnings.warn("Couldn't create" , targetdir)
+					logging.warn("Couldn't create" , targetdir)
 					sys.exit(e)
 
 		self.target_dir = os.path.abspath(targetdir)
@@ -164,13 +163,13 @@ class uniprot:
 					except (KeyboardInterrupt, SystemExit):
 						raise
 					except (ftplib.error_reply , ftplib.error_temp , ftplib.error_proto) as error:
-						warnings.warn("Caught an error from ftplib , retry later if it persists raise issue through github!")
+						logging.warn("Caught an error from ftplib , retry later if it persists raise issue through github!")
 						raise
 					except ftplib.error_perm as error:
-						warnings.warn("Caught a serious error from ftplib, raise an issue now!")
+						logging.warn("Caught a serious error from ftplib, raise an issue now!")
 						raise
 					except :
-						warnings.warn("Continuation download failed for some reason , restarting")
+						logging.warn("Continuation download failed for some reason , restarting")
 						os.unlink(self.target_path)
 						self.uniprothost.download(self.source_path,self.target_path)			
 
