@@ -1,8 +1,19 @@
 #!/usr/bin/python
 import argparse
 import sys
+import os
 
 from luddite.databases import uniprot
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -43,6 +54,7 @@ def dbsetup():
 
 if __name__ == '__main__':
 
+	check_enviroment()
 	
 	""" 
 	Build Global options using a pre parser
@@ -55,20 +67,13 @@ if __name__ == '__main__':
 	preparser = argparse.ArgumentParser(add_help=False)
 
 	# ____ Add our shared arguments ___ #
-	preparser.add_argument('--version' , action='version' , version = '0.1b')
+	preparser.add_argument('--version' , '-v', action='version' , version = __version__)
 
-
-	preparser.add_argument('--uniprot_taxonomy' ,
-								 nargs   = '*',
-								 action  = 'append',
-								 help	=' A list of taxonomic sub-units to grab from UniProt',
-								 )
-
-	preparser.add_argument('--uniprot_knowledgebase' , 
-								 nargs   ='*',
-								 action  = 'append',
-								 help	= 'Which UniProt knowledgebase to grab from'
-								 )
+	preparser.add_argument('--database',
+								nargs   = '+',
+								default = 'uniprot_tremble',
+								help	= 'Which local database should I use for a search' 
+								)
 
 	#___ Get them ___ #
 	options , leftover = preparser.parse_known_args()
@@ -102,13 +107,28 @@ if __name__ == '__main__':
 
 
 	'''
-	subcommand : dbsetup
+	subcommand : install-uniprot
 
 	Setup and Install the default Uniprot Database
 	'''
 	parser_db_setup = subparsers.add_parser( 'dbsetup' ,
 												parents = [preparser]
 											 	)
+
+	parser_db_setup.add_argument('--uniprot_taxonomy' ,
+								 nargs   = '+',
+								 action  = 'append',
+								 choices = ['complete' , 'archaea' , 'bacteria', 'fungi' , 'human' , 'invertebrates','mammals','plants','rodents','vertebrates','viruses'],
+								 help	 = 'Which UniProt taxonomic group to grab from (default: complete)',
+								 )
+
+	parser_db_setup.add_argument('--uniprot_knowledgebase' , 
+								 nargs   ='+',
+								 action  = 'append',
+								 choices = ['sprot' ,'trembl'],
+								 help	= 'Which Uniprot knowledgebase to grab from (default : trembl)'
+								 )
+
 
 	parser_db_setup.set_defaults(runthis=dbsetup)
 	
