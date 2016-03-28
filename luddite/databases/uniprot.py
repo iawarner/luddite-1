@@ -4,7 +4,7 @@ import sys
 import pprint
 import logging
 
-
+logger = logging.getLogger(__name__)
 
 uniprotBaseURI  = 'ftp.uniprot.org'
 uniprotCurrent  = '/pub/databases/uniprot/current_release/knowledgebase'
@@ -35,7 +35,7 @@ class uniprot:
 		try:
 			self.uniprothost = ftputil.FTPHost('ftp.uniprot.org','anonymous', 'password')
 		except FTPError as e:
-			logging.warn(e)
+			logger.warn(e)
 			sys.exit()
 
 		if targetdir == None :
@@ -45,27 +45,31 @@ class uniprot:
 				try :
 					os.makedirs(targetdir)
 				except OSError as e:
-					logging.warn("Couldn't create" , targetdir)
-					sys.exit(e)
+					logger.error("Couldn't create" , targetdir)
+					logger.error(e)
+					sys.exit(-1)
 
 		self.target_dir = os.path.abspath(targetdir)
 
 		if knowledgebase == 'trembl' or knowledgebase == 'sprot' :
 			self.knowledgebase = knowledgebase
 		else :
-			sys.exit("knowledgebase must be set to tremble or sprot")
+			logger.error("knowledgebase must be set to tremble or sprot")
+			sys.exit(-1)
 
 
 		if version != 'current':
 			raise NotImplementedError, "I'm not dealing with this yet"
 			releases = [string.encode('ascii') for string in self.uniprothost.listdir(uniprotPrevious)]
 			if not version in releases:
-				sys.exit("The version you requested doesn't exist")
+				logger.error("The version you requested doesn't exist")
+				sys.exit(-1)
 		self.version = version
 
 		
 		if not dbtype in ['dat' , 'fasta' , 'xml']:
-			sys.exit("dbtype must be one of the following types : dat , fasta, xml")
+			logger.error("dbtype must be one of the following types : dat , fasta, xml")
+			sys.exit(-1)
 		self.dbtype = dbtype
 
 
@@ -163,13 +167,13 @@ class uniprot:
 					except (KeyboardInterrupt, SystemExit):
 						raise
 					except (ftplib.error_reply , ftplib.error_temp , ftplib.error_proto) as error:
-						logging.warn("Caught an error from ftplib , retry later if it persists raise issue through github!")
+						logger.error("Caught an error from ftplib , retry later if it persists raise issue through github!")
 						raise
 					except ftplib.error_perm as error:
-						logging.warn("Caught a serious error from ftplib, raise an issue now!")
+						logger.error("Caught a serious error from ftplib, raise an issue now!")
 						raise
 					except :
-						logging.warn("Continuation download failed for some reason , restarting")
+						logger.error("Continuation download failed for some reason , restarting")
 						os.unlink(self.target_path)
 						self.uniprothost.download(self.source_path,self.target_path)			
 

@@ -4,8 +4,16 @@ import sys
 import os
 import logging
 
-import enviroment
-from luddite.databases import uniprot
+"""
+Setting this as early as possible
+"""
+logger = logging.getLogger('magrid')
+logger.propagate = False
+logformat = logging.Formatter('%(asctime)s %(levelname)-2s %(message)s','%m-%d %H:%M')
+
+import runEnviroment
+
+
 
 
 
@@ -37,21 +45,20 @@ def set_default_subcommand(self,name,args=None):
 
 
 def fullrun(options):
-	logging.info("Starting a full run")
-	dbsetup(options)
+	logger.info("Starting a full run")
+	
 
 
-
-def dbsetup(options):
-	logging.info("Downloading databases")
-	print(options)
+def default_db_install(options):
+	logger.info("Downloading databases")
+	
 
 	for i in options.uniprot_taxonomy:
 		for j in options.uniprot_knowledgebase:
 			connect = uniprot.uniprot(taxonomy=i , knowledgebase = j , targetdir = runinfo.magrid_db_path)
 			connect.download()
 
-	logging.info("Building the database")
+	logger.info("Building the database")
 
 
 
@@ -89,28 +96,30 @@ if __name__ == '__main__':
 							action  = 'store_const',
 							help 	= 'Verbose Outputs',
 							dest 	= 'loglevel',
-							const 	= logging.INFO
+							const 	= logging.INFO,
+							default = logging.WARNING
 							)
 
 	preparser.add_argument('--debug',
 							action  = 'store_const',
 							help 	= 'Verbose Outputs',
 							dest 	= 'loglevel',
-							const = logging.DEBUG,
+							const   = logging.DEBUG,
 							default = logging.WARNING
 							)
 
 
-	preparser.add_argument('--version' , '-v', action='version' , version = enviroment.__version__)
+	preparser.add_argument('--version' , '-v', action='version' , version = runEnviroment.__version__)
 	#___ Get them ___ #
 	options , leftover = preparser.parse_known_args()
+
 
 	#__ new parser object __#
 	parser = argparse.ArgumentParser(parents = [ preparser ],
 									 prog='magrid',
 									 add_help= True,
 									 description = "Meta genome restricted mass ID"
-											)
+										)
 	
 
 
@@ -136,7 +145,7 @@ if __name__ == '__main__':
 
 	Setup and Install the default Uniprot Database
 	'''
-	parser_db_setup = subparsers.add_parser( 'dbsetup' ,
+	parser_db_setup = subparsers.add_parser( 'default_db_install' ,
 												parents = [preparser]
 											 	)
 
@@ -147,22 +156,19 @@ if __name__ == '__main__':
 								 help	 = 'Which UniProt taxonomic group to grab from (default: complete)',
 								 )
 
-	parser_db_setup.add_argument('--uniprot_knowledgebase' , 
+	parser_db_setup.add_argument('--uniprot_knowledgebase', 
 								 nargs   ='+',
 								 action  = 'append',
 								 choices = ['sprot' ,'trembl'],
-								 help	= 'Which Uniprot knowledgebase to grab from (default : trembl)'
+								 help	 = 'Which Uniprot knowledgebase to grab from (default : trembl)'
 								 )
 
 
-	parser_db_setup.set_defaults(runthis=dbsetup)
+	parser_db_setup.set_defaults(runthis=default_db_install)
 	
 
 
-	
-	'''
-	DB Install
-	'''
+
 
 
 	# __ Kind of a hacky work around __ #
@@ -170,18 +176,31 @@ if __name__ == '__main__':
 	
 
 	options = parser.parse_args()
+	
+	runinfo=runEnviroment.runEnviroment(outdir = options.outputdir)
 
 	#__ Set Logger stuffs __#
-	logging.basicConfig(level=options.loglevel,
-						format='%(asctime)s %(levelname)-2s %(message)s',
-                    	datefmt='%m-%d %H:%M'
-						)
+	logger.setLevel(options.loglevel)
+	
+
+	loghandle = logging.FileHandler(runinfo.log_file)
+	loghandle.setLevel(logging.DEBUG)
+
+	consoleHandler = logging.StreamHandler()
+	consoleHandler.setLevel(options.loglevel)
+
+	loghandle.setFormatter(logformat)
+	consoleHandler.setFormatter(logformat)
+
+	logger.addHandler(loghandle)
+	logger.addHandler(consoleHandler)
+
 
 	#___ Do the damn thing __#
-	runinfo=enviroment.RunEnviroment(outdir = options.outputdir)
 	
-	logging.info(vars(options))
-	logging.info(vars(runinfo))
+	logger.info("RAWRRRRRRRRRRRRR")
+	logger.info(vars(options))
+	logger.info(vars(runinfo))
 	
 	if (hasattr(options,'runthis')):
 		options.runthis(options)

@@ -1,4 +1,5 @@
 import parasail
+import logging
 
 """
 parasail function naming conventions:
