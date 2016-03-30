@@ -36,10 +36,10 @@ class uniprot:
 			self.uniprothost = ftputil.FTPHost('ftp.uniprot.org','anonymous', 'password')
 		except FTPError as e:
 			logger.warn(e)
-			sys.exit()
+			raise
 
 		if targetdir == None :
-			targetdir = os.getcwd()
+			targetdir = os.path.abspath(os.path.dirname(__file__))
 		else:
 			if not os.path.exists(targetdir):
 				try :
@@ -47,7 +47,7 @@ class uniprot:
 				except OSError as e:
 					logger.error("Couldn't create" , targetdir)
 					logger.error(e)
-					sys.exit(-1)
+					raise
 
 		self.target_dir = os.path.abspath(targetdir)
 
