@@ -1,3 +1,17 @@
+"""Summary
+
+NCBITaxonomy.py
+
+A python module for downloading and processing a current version of the NCBI taxonomy providing methods 
+for accessing taxonomic information from TaxID numbers
+
+Attributes:
+    logger (TYPE): logger for this module
+    ncbibase (str): the base url for the ncbi's public FTP
+    tax_target (str): the target file on ncbi's database
+    taxonomy_dir (str): the directory where the file resides
+    taxonomy_tar (str):	the actual tar file containing all of the downoad info
+"""
 import ftputil
 import os
 import sys
@@ -13,12 +27,20 @@ taxonomy_dir = '/pub/taxonomy/'
 taxonomy_tar = 'taxdump.tar.gz'
 
 class ncbiTaxonomy(object):
-
+	"""Summary
+	Base class for this module
+	"""
 	def __init__(self, targetdir = None):
+		"""Summary
+		
+		Args:
+		    targetdir (TYPE, optional): Where should data be downloaded and stored
+		"""
+		self.downloaded_file = False
 
-		"""
-		Setting our target directory
-		"""
+
+#		Setting our target directory
+
 
 		if targetdir == None:
 			self.target_dir = os.path.abspath(os.path.dirname(__file__))
@@ -33,9 +55,9 @@ class ncbiTaxonomy(object):
 
 
 		self.target_path = os.path.join(self.target_dir,taxonomy_tar)
-		"""
-		Test the connection to ncbi
-		"""
+
+#		Test the connection to ncbi
+
 		try:
 			self.ncbihost = ftputil.FTPHost(ncbibase,'anonymous', 'password' )		
 		except FTPError as e:
@@ -43,9 +65,9 @@ class ncbiTaxonomy(object):
 			raise
 
 
-		"""
-		Connect to our sqlite db , create table if it doesn't exist
-		"""
+
+#		Connect to our sqlite db , create table if it doesn't exist
+
 		self.ncbi_sq3 = os.path.abspath(os.path.join(self.target_dir ,'NCBItaxonomy.sq3'))
 
 			
@@ -57,13 +79,34 @@ class ncbiTaxonomy(object):
 			logger.warn(e)
 			raise
 
+		self.download()
 
-		if self.download() == True :
+		if self.downloaded_file == True or os.path.getsize(self.ncbi_sq3) == 0:
 			logging.info("Building the database")
 			self.build()
 
 
+#		Get our column names
+
+		self.sq3_columns = set()
+		try :
+			tmp = self.sq3_cur.execute('select * from ncbi')
+			self.sq3_columns = [description[0] for description in tmp.description]
+		except sqlite3.Error as e:
+			logger.warn(e)
+			raise
+
 	def download(self):
+		"""
+		Proceedure to download data from the NCBI. Attempts to determine if the file 
+		needs to be downloaded , also has minimal functionality for continuation.
+
+		
+		Returns:
+		    TYPE: Null
+		    Interacts with self.downloaded_file on success 
+
+		"""
 		source_size  = self.ncbihost.path.getsize(tax_target)
 		source_mtime = self.ncbihost.stat(tax_target).st_mtime
 
@@ -81,6 +124,7 @@ class ncbiTaxonomy(object):
 		elif target_size == -1 :
 			logging.info("Starting download of NCBI Taxonomy data.")
 			self.ncbihost.download(tax_target,self.target_path)
+			self.downloaded_file = True 
 		elif target_mtime > source_mtime:
 			logging.info("Attempting to continue download.")
 			with open (self.target_path , 'ab') as f:
@@ -88,7 +132,7 @@ class ncbiTaxonomy(object):
 					pass
 				else:
 					try:
-						""" If this ever gets supported by ftputil rewrite this try """
+						#If this ever gets supported by ftputil rewrite this try """
 						import ftplib
 						ftp = ftplib.FTP(ncbibase)
 						ftp.login()
@@ -106,30 +150,29 @@ class ncbiTaxonomy(object):
 						logger.error("Continuation download failed for some reason , restarting")
 						os.unlink(self.target_path)
 						self.ncbihost.download(self.source_path,self.target_path)			
-					
+			self.downloaded_file = True 		
 		elif source_mtime < target_mtime:
 			os.unlink(self.target_path)
 			self.ncbihost.download(self.source_path,self.target_path)
-			
+			self.downloaded_file = True 
 		else  :
 			os.unlink(self.target_path)
 			self.ncbihost.download(self.source_path,self.target_path)
-		
-		return True
+			self.downloaded_file = True 
 		
 
 	def build(self):
-
-		database_mtime = None
-		download_mtime = os.stat(self.target_path).st_mtime
-
-		if os.path.exists(self.ncbi_sq3):
-			database_mtime = os.stat(self.ncbi_sq3).st_mtime
-			if database_mtime < download_mtime:
-				os.unlink(self.ncbi_sq3)
-			else:
-				logger.info("No need to update NCBI Taxonomy Database")
-				return
+		"""
+		Proceedure that processes raw data into an SQLite database
+		
+		Returns:
+			void
+		"""
+		try:
+			self.sq3_cur.execute('DROP TABLE IF EXISTS ncbi')
+		except sqlite3.Error as e:
+			logger.warn(e)
+			raise
 
 		logger.info("Building NCBI Taxonomy Database")
 		tar = tarfile.open(self.target_path)
@@ -160,17 +203,20 @@ class ncbiTaxonomy(object):
 			name2node[current]=rank
 			ranks.add(rank)
 
+
 		logger.info("Populating Table")
 		insert = [s.replace(' ', '_') for s in ranks]
 		insert = ["`"+ s + "` TEXT" for s in insert]
 		create_table_text = "CREATE TABLE IF NOT EXISTS ncbi ( taxID INT PRIMARY KEY, taxonomy TEXT, rank TEXT, " + ", ".join(insert) + ")"
 	
-		self.sq3_cur.execute(create_table_text)
-		
+		try :
+			self.sq3_cur.execute(create_table_text)
+		except sqlite3.Error as e:
+			logger.warn(e)
+			raise			
 
-		"""
-		Is there any reason we want to keep 'no rank' entries as starting points ? 
-		"""
+
+#		Is there any reason we want to keep 'no rank' entries as starting points ? 
 
 		for starting_node in taxID2taxname:
 			current_node = starting_node
@@ -188,35 +234,130 @@ class ncbiTaxonomy(object):
 				taxonomy_string.reverse()
 				insert_dict[escaped_name('taxonomy')]=cleaned_name(';'.join(taxonomy_string))
 				insert = 'INSERT OR IGNORE INTO ncbi({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
-				self.sq3_cur.execute(insert,insert_dict.values())
+				
+				try:
+					self.sq3_cur.execute(insert,insert_dict.values())
+				except sqlite3.Error as e:
+					logger.warn(e)
+					raise
+		try:
+			self.sq3_con.commit()
+		except sqlite3.Error as e:
+			logger.warn(e)
+			raise
 
-		self.sq3_con.commit()
+
+	def get_rank(self, taxID):
+		"""Summary
+		
+		Args:
+		    taxID (int): NCBI Taxonomic ID 
+		
+		Returns:
+		    string : the taxonomic rank of the Taxonomic ID (i.e. genus / species / sub-species etc.)
+		"""
+		text = 'SELECT `rank` FROM ncbi WHERE `taxID` = %s' % taxID
+		
+		try:
+			self.sq3_cur.execute(text)
+			taxID = self.sq3_cur.fetchone()
+		except sqlite3.Error as e:
+			logger.warn(e)
+			raise
+
+		return taxID[0].encode("ascii")
+
+	def get_string(self , taxID):
+		"""Summary
+		
+		Args:
+		    taxID (int): NCBI Taxonomic ID
+		
+		Returns:
+		    string: a semi colon delimited taxonomy for that Taxonomic ID (i.e Bacteria;something;something;genus;species)
+		"""
+		text = 'SELECT `taxonomy` FROM ncbi WHERE `taxID` = %s' % taxID
+		
+		try: 
+			self.sq3_cur.execute(text)
+			taxonomy = self.sq3_cur.fetchone()
+		except sqlite3.Error as e:
+			logger.warn(e)
+			raise
+
+		return taxonomy[0].encode("ascii")
+
+
+	def get_taxa(self , taxID , level):
+		"""Summary
+		
+		Args:
+		    taxID (Int):  NCBI Taxonomic ID
+		    level (string): What level from the taxonomic ID you wish . (i.e the Genus from NCBI Taxonomic ID 200)
+		
+		Returns:
+		    string: The taxa from the requested level ( i.e. the genus from Salmonella enterica , would return Salmonella )
+		"""
+		if level in self.sq3_columns:
+			try:
+				text = 'SELECT `%s` FROM ncbi WHERE `taxID` = %s' % (level , taxID)
+				self.sq3_cur.execute(text)
+				taxonomy = self.sq3_cur.fetchone()
+			except sqlite3.Error as e:
+				logger.warn(e)
+				raise
+
+			return taxonomy[0].encode("ascii")			
+		else :
+			logger.warn("from ncbiTaxonomy.get_taxa(): level %s , doesn't exist" % level)
+			return None
+
 
 	def __del__(self):
-		self.sq3_con.commit()
-		self.sq3_con.close()
-
-
-
-def blank_insert_statement(taxID):
-	text = "INSERT INTO ncbi (%s) VALUES (%s)" % (escaped_name('taxID') , taxID)
-	logging.debug(text)
-	return text
-
-def update_statement(taxID , rank , name):
-	text = "UPDATE ncbi SET %s = '%s' WHERE `taxID` = %s" % (escaped_name(rank) , cleaned_name(name) , taxID)
-	logging.debug(text)
-	return text
+		"""Summary
+		Destructor method that explicitly commits and closes our connection
+		
+		Returns:
+		    TYPE: Description
+		"""
+		try :
+			self.sq3_con.commit()
+			self.sq3_con.close()
+		except sqlite3.Error as e:
+			logger.warn(e)
+			raise
 
 def cleaned_name (string):
+	"""
+	Cleans text before insertion into sqlite table (double single ticks etc.)
+	
+	Args:
+	    string (string): The string to work on
+	
+	Returns:
+	    string : edited string 
+	"""
 	string = string.replace("'","''")
-#	string = string.replace(".","\\.")
 	return string
 
 def escaped_name (string):
+	"""
+	properly escapes column names with back ticks
+	
+	Args:
+	    string (string): column name
+	
+	Returns:
+	    string: column name surrounded by back ticks
+	"""
 	return ("`"+string+"`").replace(' ','_')
+
 
 if __name__ == '__main__':
 	logging.basicConfig(level=logging.INFO)
 	taxonomy = ncbiTaxonomy()
-	
+	print taxonomy.get_rank(200)
+	print taxonomy.get_string(200)
+	print taxonomy.get_taxa(200 , 'genus')
+
+
