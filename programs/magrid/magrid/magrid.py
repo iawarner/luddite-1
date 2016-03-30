@@ -1,18 +1,21 @@
 #!/usr/bin/python
+
+
 import argparse
 import sys
+sys.dont_write_bytecode = True
 import os
 import logging
 
-"""
-Setting this as early as possible
-"""
+
+# Setting this as early as possible
+
 logger = logging.getLogger('magrid')
 logger.propagate = False
 logformat = logging.Formatter('%(asctime)s %(levelname)-2s %(message)s','%m-%d %H:%M')
 
 import runEnviroment
-
+import magrid_db
 
 
 

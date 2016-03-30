@@ -1,7 +1,9 @@
 """
 Yet another fasta parsing module (Should probably dig into khmer and look / steal theres at some point tbh)
 """
-from openany import openany
+from __future__ import absolute_import
+
+from ..utils import openany
 
 class fasta (object):
 	"""

@@ -1,4 +1,4 @@
-from openany import openany
+from ..utils import openany
 from re import *
 
 gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)')

@@ -1,3 +1,9 @@
+"""Summary
+
+Attributes:
+    logger (TYPE): Description
+    ncbi (TYPE): Description
+"""
 import sys
 import os
 import logging
@@ -5,32 +11,41 @@ import hashlib
 import sqlite3 as sql
 
 
-from ete3 import NCBITaxa
 
-from luddite.databases import uniprot
+from luddite import uniprot
+from luddite.ncbi import taxonomy
 from config import MAGRID_DB_PATH
 
 
 
 
 logger = logging.getLogger(__name__)
+taxonomy = taxonomy.ncbiTaxonomy()
 
-ncbi=NCBITaxa()
-
-"""
-This isn't updating like it is supposed to - will likely need a work around or to hack into ete3's NCBITaxa
-"""
-#ncbi.update_taxonomy_database()
 
 def c_dump(x):
+	"""
+	creates a compact json dump
+	
+	Args:
+	    x (): any python data structure
+	
+	Returns:
+	    string: compact json dump of  data structure
+	"""
 	return json.dumps(x, separators=(',',':'))
 
 
-
 class magridDataBase (object):
-
+	"""
+	A base class for the magridDatabase
+	"""
 	def __init__(self , name):
+		"""Summary
 
+		Args:
+		    name (str): name of the database
+		"""
 		self.this_DB_PATH = os.path.join(MAGRID_DB_PATH, name)
 
 		try:
@@ -55,19 +70,42 @@ class magridDataBase (object):
 
 
 
-	def addrecord(self, record ):
+	def addrecord(self, sequence_hash = None , kegg_ontology = None , kegg_mapp = None , kegg_reaction = None , go_term = None , sequence = None ):
+		"""Summary
+		
+		Add a record to the database
+
+		Args:
+		    sequence_hash (str, optional): Description
+		    kegg_ontology (str, optional): Description
+		    kegg_mapp (str, optional): Description
+		    kegg_reaction (str, optional): Description
+		    go_term (str, optional): Description
+		    sequence (str, required): Description
+		
+		Returns:
+		    void: 
+		"""
 		required = ['sequence']
 
 		if not all(k in record for k in required):
 			logger.warn("addrecord() requires: " + ', '.join(required))
 
-		print(record)
-		signature = hashlib.sha512(record['sequence']).hexdigest()
 
+		print(record)
+		signature = hashlib.sha512(sequence).hexdigest()
+
+		self.sq3_con.commit()
 		print signature
 
 
 	def __del__(self):
+		"""Summary
+		Class destructor , on any exit attempts to commit then exits.
+		Returns:
+		    void:
+		"""
+		self.sq3_con.commit()
 		self.sq3_con.close()
 
 
@@ -84,9 +122,5 @@ if __name__ == '__main__':
 				}
 
 
-#	this = ncbi.get_taxid_translator(ncbi.get_lineage(602))
-	print 
-	print	ncbi.get_descendant_taxa(602,collapse_subspecies=True)
-	#print(this)
 	
 	
