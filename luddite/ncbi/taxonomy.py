@@ -1,17 +1,3 @@
-"""Summary
-
-NCBITaxonomy.py
-
-A python module for downloading and processing a current version of the NCBI taxonomy providing methods 
-for accessing taxonomic information from TaxID numbers
-
-Attributes:
-    logger (TYPE): logger for this module
-    ncbibase (str): the base url for the ncbi's public FTP
-    tax_target (str): the target file on ncbi's database
-    taxonomy_dir (str): the directory where the file resides
-    taxonomy_tar (str):	the actual tar file containing all of the downoad info
-"""
 import ftputil
 import os
 import sys
@@ -19,168 +5,188 @@ import sqlite3 as sql
 import logging
 import tarfile
 
+
 logger = logging.getLogger(__name__)
 
-tax_target  = '/pub/taxonomy/taxdump.tar.gz'
-ncbibase 	 = 'ftp.ncbi.nih.gov'
-taxonomy_dir = '/pub/taxonomy/'
-taxonomy_tar = 'taxdump.tar.gz'
+source_file_path = '/pub/taxonomy/taxdump.tar.gz'
+ncbi_server = 'ftp.ncbi.nih.gov'
+source_file_dir = '/pub/taxonomy'
+source_file_name = 'taxdump.tar.gz'
+target_file_name = 'taxdump.tar.gz'
+
 
 class ncbiTaxonomy(object):
-	"""Summary
-	Base class for this module
-	"""
-	def __init__(self, targetdir = None):
-		"""Summary
+	"""base class for ncbiTaxonomy"""
+	def __init__(self, targetdir = os.path.abspath(os.path.dirname(__file__))):
+
+		#Build target directory / associated variables
+		self.targetdir = targetdir
 		
-		Args:
-		    targetdir (TYPE, optional): Where should data be downloaded and stored
-		"""
-		self.downloaded_file = False
+		if not os.path.exists(self.targetdir):
+			try :
+				os.makedirs(self.targetdir)
+			except OSError as e:
+				logger.error("Couldn't create" , self.targetdir)
+				logger.error(e)
+				raise
 
-
-#		Setting our target directory
-
-
-		if targetdir == None:
-			self.target_dir = os.path.abspath(os.path.dirname(__file__))
-		else:
-			if not os.path.exists(targetdir):
-				try :
-					os.makedirs(targetdir)
-				except OSError as e:
-					logger.error("Couldn't create" , targetdir)
-					logger.error(e)
-					raise
-
-
-		self.target_path = os.path.join(self.target_dir,taxonomy_tar)
-
-#		Test the connection to ncbi
-
+		self.target_path = os.path.abspath(os.path.join(self.targetdir , target_file_name))		
+		self.touch_file  = os.path.abspath(os.path.join(self.targetdir,'taxdmp.downloaded'))
+		# Test connection to the NCBI
 		try:
-			self.ncbihost = ftputil.FTPHost(ncbibase,'anonymous', 'password' )		
+			self.ncbihost = ftputil.FTPHost(ncbi_server,'anonymous', 'password' )		
 		except FTPError as e:
 			logger.warn(e)
 			raise
 
+		# Initialize all file sizes and mtimes
+			#When was the last time someone did something to the taxdmp file on the server
+		self.source_size  = self.ncbihost.path.getsize(source_file_path)
+		self.source_mtime = self.ncbihost.stat(source_file_path).st_mtime 
+
+			#If a copy of the download file exists when was the last time was it touched
+		
+		if os.path.exists(self.target_path) :
+			self.target_size = os.path.getsize(self.target_path)
+			self.target_mtime = os.stat(self.target_path).st_mtime
+		else :
+			self.target_size = -1
+			self.target_mtime = -1
+
+			#If the touch file exists when was the last time it was touched
+		
+		if os.path.exists(self.touch_file):
+			self.touch_size = os.path.getsize(self.touch_file)
+			self.touch_mtime = os.stat(self.touch_file).st_mtime
+		else:
+			self.touch_size = -1
+			self.touch_mtime = -1
 
 
-#		Connect to our sqlite db , create table if it doesn't exist
+		
+		#logic for if we need to download the file
+		self.recent_download = False
 
-		self.ncbi_sq3 = os.path.abspath(os.path.join(self.target_dir ,'NCBItaxonomy.sq3'))
+		if self.touch_mtime > self.source_mtime:
+			#last download was newer than source so pass through
+			pass
+		elif self.source_mtime > self.target_mtime or self.source_mtime > self.touch_mtime:
+			#source is newer , download
+			self.download()
+		elif self.source_size > self.target_size:
+			self.continue_dl()
+		else :
+			#fall through is to just dowload the damn file
+			download()
 
-			
-
-		try:
-			self.sq3_con	 = sql.connect(self.ncbi_sq3)
-			self.sq3_cur 	 = self.sq3_con.cursor()
-		except sql.Error as e:
-			logger.warn(e)
-			raise
-
-		self.download()
-
-		if self.downloaded_file == True or os.path.getsize(self.ncbi_sq3) == 0:
-			logging.info("Building the database")
-			self.build()
+		#Database building 
+		self.ncbi_sq3    = os.path.abspath(os.path.join(self.targetdir,'NCBItaxonomy.sq3'))
+		
+		if os.path.exists(self.ncbi_sq3):
+			self.ncbi_sq3_mtime = os.stat(self.ncbi_sq3).st_mtime
+		else:
+			self.ncbi_sq3_mtime = -1
 
 
-#		Get our column names
+		if os.path.exists(self.ncbi_sq3):
+			self.ncbi_sq3_mtime = os.stat(self.ncbi_sq3).st_mtime
+			try:
+				self.sq3_con	 = sql.connect(self.ncbi_sq3)
+				self.sq3_cur 	 = self.sq3_con.cursor()
+			except sql.Error as e:
+				logger.warn(e)
+				raise
+		else:
+			self.ncbi_sq3_mtime = -1
 
+
+		#logic for if we need a fresh build (if recent download , then yes)
+		if not os.path.exists(self.ncbi_sq3):
+			self.build_database()
+		elif self.recent_download:
+			self.build_database()
+		
+
+
+		# Initialize our column names 
 		self.sq3_columns = set()
-		try :
-			tmp = self.sq3_cur.execute('select * from ncbi')
-			self.sq3_columns = [description[0] for description in tmp.description]
-		except sqlite3.Error as e:
-			logger.warn(e)
-			raise
+		if os.path.exists(self.ncbi_sq3):
+			self.sq3_columns = set_sq3_columns(self.ncbi_sq3)
+
 
 	def download(self):
-		"""
-		Proceedure to download data from the NCBI. Attempts to determine if the file 
-		needs to be downloaded , also has minimal functionality for continuation.
+		logging.info("Starting full download")
 
-		
-		Returns:
-		    TYPE: Null
-		    Interacts with self.downloaded_file on success 
-
-		"""
-		source_size  = self.ncbihost.path.getsize(tax_target)
-		source_mtime = self.ncbihost.stat(tax_target).st_mtime
-
-		target_size  = None
-		target_mtime = None
-
-		if os.path.exists(self.target_path):
-			target_size  = os.path.getsize(self.target_path)
-			target_mtime = os.stat(self.target_path).st_mtime
+		try:
+			self.ncbihost.download(source_file_path , self.target_path)
+		except: 
+			raise
 		else:
-			target_size = -1
+			self.target_size = os.path.getsize(self.target_path)
+			self.target_mtime = os.stat(self.target_path).st_mtime
+			if os.path.exists(self.touch_file):
+				self.touch_mtime = os.utime(self.touch_file,None)
+			else:
+				f = open(self.touch_file, 'w')
+				f.close()
+		self.recent_download = True
 
-		if source_size == target_size :
-			logging.info("NCBI Taxonomy up to date.")
-		elif target_size == -1 :
-			logging.info("Starting download of NCBI Taxonomy data.")
-			self.ncbihost.download(tax_target,self.target_path)
-			self.downloaded_file = True 
-		elif target_mtime > source_mtime:
-			logging.info("Attempting to continue download.")
-			with open (self.target_path , 'ab') as f:
-				if (source_size == f.tell()):
-					pass
-				else:
-					try:
-						#If this ever gets supported by ftputil rewrite this try """
-						import ftplib
-						ftp = ftplib.FTP(ncbibase)
-						ftp.login()
-						ftp.cwd(taxonomy_dir)
-						ftp.retrbinary('RETR %s' % taxonomy_tar , f.write , rest=f.tell())
-					except (KeyboardInterrupt, SystemExit):
-						raise
-					except (ftplib.error_reply , ftplib.error_temp , ftplib.error_proto) as error:
-						logger.error("Caught an error from ftplib , retry later if it persists raise issue through github!")
-						raise
-					except ftplib.error_perm as error:
-						logger.error("Caught a serious error from ftplib, raise an issue now!")
-						raise
-					except :
-						logger.error("Continuation download failed for some reason , restarting")
-						os.unlink(self.target_path)
-						self.ncbihost.download(self.source_path,self.target_path)			
-			self.downloaded_file = True 		
-		elif source_mtime < target_mtime:
-			os.unlink(self.target_path)
-			self.ncbihost.download(self.source_path,self.target_path)
-			self.downloaded_file = True 
-		else  :
-			os.unlink(self.target_path)
-			self.ncbihost.download(self.source_path,self.target_path)
-			self.downloaded_file = True 
-		
 
-	def build(self):
-		"""
-		Proceedure that processes raw data into an SQLite database
+	def continue_dl(self):
+		logging.info("Continuing broken download")
+		import ftplib
+
+		try:
+			ftp = ftplib.FTP(ncbi_server)
+			ftp.login()
+			ftp.cwd(source_file_dir)
+			with open(self.target_path , 'ab') as f:
+				ftp.retrbinary('RETR %s' % self.source_file_name , f.write,rest=f.tell())
+		except (KeyboardInterrupt, SystemExit):
+			raise
+		except (ftplib.error_reply , ftplib.error_reply) as e:
+			logger.error("An error occured during download")
+			logger.error(e)
+			raise
+		except ftplib.error_perm as error:
+			logger.error("A permanent error was raised by ftplib - please report this!")
+			logger.error(e)
+			raise
+		else:
+			self.target_size = os.path.getsize(self.target_path)
+			self.target_mtime = os.stat(self.target_path).st_mtime
+
+			if os.path.exists(self.touch_file):
+				self.touch_mtime = os.utime(self.touch_file,None)
+			else:
+				f = open(self.touch_file , 'w')
+				f.close()
+		self.recent_download = True
+
+	def build_database(self):
 		
-		Returns:
-			void
-		"""
+		logger.info("Building NCBI Taxonomy Database")
+
+		try:
+				self.sq3_con	 = sql.connect(self.ncbi_sq3)
+				self.sq3_cur 	 = self.sq3_con.cursor()
+		except sql.Error as e:
+				logger.warn(e)
+				raise
+
 		try:
 			self.sq3_cur.execute('DROP TABLE IF EXISTS ncbi')
 		except sqlite3.Error as e:
 			logger.warn(e)
 			raise
 
-		logger.info("Building NCBI Taxonomy Database")
 		tar = tarfile.open(self.target_path)
 		
 		taxID2taxname = {}
-		parent2child = {}
-		name2node    = {}
-		ranks 		 = set()
+		parent2child  = {}
+		name2node     = {}
+		ranks 		  = set()
+
 
 		logger.info("Loading scientific names")
 		for l in tar.extractfile("names.dmp"):
@@ -203,7 +209,6 @@ class ncbiTaxonomy(object):
 			name2node[current]=rank
 			ranks.add(rank)
 
-
 		logger.info("Populating Table")
 		insert = [s.replace(' ', '_') for s in ranks]
 		insert = ["`"+ s + "` TEXT" for s in insert]
@@ -213,8 +218,7 @@ class ncbiTaxonomy(object):
 			self.sq3_cur.execute(create_table_text)
 		except sqlite3.Error as e:
 			logger.warn(e)
-			raise			
-
+			raise
 
 #		Is there any reason we want to keep 'no rank' entries as starting points ? 
 
@@ -245,6 +249,9 @@ class ncbiTaxonomy(object):
 		except sqlite3.Error as e:
 			logger.warn(e)
 			raise
+
+		os.unlink(self.target_path)
+
 
 
 	def get_rank(self, taxID):
@@ -312,7 +319,6 @@ class ncbiTaxonomy(object):
 			logger.warn("from ncbiTaxonomy.get_taxa(): level %s , doesn't exist" % level)
 			return None
 
-
 	def __del__(self):
 		"""Summary
 		Destructor method that explicitly commits and closes our connection
@@ -321,7 +327,6 @@ class ncbiTaxonomy(object):
 		    TYPE: Description
 		"""
 		try :
-			self.sq3_con.commit()
 			self.sq3_con.close()
 		except sqlite3.Error as e:
 			logger.warn(e)
@@ -353,11 +358,20 @@ def escaped_name (string):
 	return ("`"+string+"`").replace(' ','_')
 
 
+def set_sq3_columns(filename):
+	internal_set = set()
+
+	try :
+		sq3_connection = sql.connect(filename)
+		cursor = sq3_connection.cursor()
+		tmp = cursor.execute('select * from ncbi')
+		internal_set = [descriptions[0] for descriptions in tmp.description]
+		sq3_connection.close()
+	except sql.Error as e:
+		logger.warn(e)
+		raise
+
+	return internal_set
+
 if __name__ == '__main__':
-	logging.basicConfig(level=logging.INFO)
 	taxonomy = ncbiTaxonomy()
-	print taxonomy.get_rank(200)
-	print taxonomy.get_string(200)
-	print taxonomy.get_taxa(200 , 'genus')
-
-
