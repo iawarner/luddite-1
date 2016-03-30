@@ -1,16 +1,4 @@
-import os
-import sys
-import warnings
-
-magic_dict = {
-	'\x42\x5A\x68' 				: 'bz2',
-	'\x50\x4B\x03\x04' 			: 'zip',
-	'\x1f\x8b\x08'				: 'gzip'
-	}
-
-peek_length = max(len(x) for x in magic_dict)
-
-"""
+"""Summary
 This module provides a minimal interface for checking compression on files
 and opening for reading with the appropriate libraries as needed.
 
@@ -25,9 +13,36 @@ As a result of zipfiles lack of a seek() function , so if you need it test for i
 	import zipfile 
 	if isinstance(file, zipfile.ZipExtFile )
 
+
+Attributes:
+    magic_dict (dict): a dict of magic IDs to determine which compression algorithm we're looking at
+    peek_length (int): how big of a peek do we need?
 """
+import os
+import sys
+import warnings
+import logging
+
+
+magic_dict = {
+	'\x42\x5A\x68' 				: 'bz2',
+	'\x50\x4B\x03\x04' 			: 'zip',
+	'\x1f\x8b\x08'				: 'gzip'
+	}
+
+peek_length = max(len(x) for x in magic_dict)
+
+
 
 def openany(path):
+	"""Summary
+	
+	Args:
+	    path (string): Path to the file of interest
+	
+	Returns:
+	    fileObject: fileObject to the file at that path being run through the appropriate library
+	"""
 	path = os.path.abspath(path)
 	
 	if not (os.path.isfile(path)):

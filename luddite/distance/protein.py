@@ -1,3 +1,6 @@
+"""
+A library for protein pairwise distance calculations using parasail.
+"""
 import parasail
 import logging
 
@@ -75,7 +78,23 @@ for reference in references:
 
 
 def similarity (protein1 , protein2 , alignment_class = 'nw' , stats = 'stats' , dp=None , vectorized = 'striped' ,  width = 'sat' , gap = 10 , extension = 1):
+	"""
+	Calculate the similarity between two protein sequences
 
+	Args:
+	    protein1 (str): target sequence
+	    protein2 (str): query sequence
+	    alignment_class (str, optional): what alignment class to use (nw / sw)
+	    stats (str, optional): do we want stats returned
+	    dp (TYPE, optional): 
+	    vectorized (str, optional): How should I vectorize the search
+	    width (str, optional): How wide should I make a stripe
+	    gap (int, optional): Gap penalty
+	    extension (int, optional): Gap extension penalty
+	
+	Returns:
+	    TYPE: Description
+	"""
 	function_arguments = [alignment_class , stats, dp , vectorized , width]
 
 	command = '_'.join(item for item in function_arguments if item)
