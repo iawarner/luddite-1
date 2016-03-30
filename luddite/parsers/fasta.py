@@ -1,15 +1,39 @@
+"""
+Yet another fasta parsing module (Should probably dig into khmer and look / steal theres at some point tbh)
+"""
 from openany import openany
 
 class fasta (object):
-	
+	"""
+	The fasta class is a base class for interacting with FASTA files
+	"""
 	def __init__ ( self , path ):
+		"""Summary
+		
+		Args:
+		    path (string): The path to the FASTA file
+		"""
 		self.file = openany(path)
 		self.path = path
 
 	def __repr__(self):
+		"""Summary
+		
+		Returns:
+		    TYPE: Description
+		"""
 		return '{}'.format(self.file)
 
 	def read (self):
+		"""
+		A fasta file iterator , reads one record at a time
+		
+		Yields:
+		    dict:{ 
+		    	   header : The FASTA records header,
+		    	   sequence : The appropriate sequence
+		    	  }
+		"""
 		buff = ''
 		record_break = "\n>"
 
@@ -26,11 +50,16 @@ class fasta (object):
 
 			buff+=chunk
 
-
-
-
-
 def parse(inc):
+	"""
+	An internal function for parsing an individual record into its header and sequence
+	
+	Args:
+	    inc (TYPE): Description
+	
+	Returns:
+	    TYPE: Description
+	"""
 	[header,sequence] = inc.split("\n" , 1)
 	if header[0] == '>':
 		header=header[1:]
