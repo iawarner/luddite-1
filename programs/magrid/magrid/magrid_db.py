@@ -53,7 +53,7 @@ class genes(object):
 		self.sq3_connection = sql.connect(self.database_sqlite_file)
 		self.sq3_connection.row_factory	= sql.Row
 		self.sq3_cursor		= self.sq3_connection.cursor()
-		self.sq3_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT UNIQUE, genus TEXT, species TEXT, NCBItaxID INT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_mapp TEXT , sequence TEXT)")
+		self.sq3_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT, genus TEXT, species TEXT, NCBItaxID INT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_mapp TEXT , sequence TEXT)")
 		self.sq3_connection.commit()
 
 #	Connect to the FASTA database
@@ -61,12 +61,17 @@ class genes(object):
 
 
 
-	def add_record( self, sequence_hash = None , kegg_ontology = None , kegg_mapp = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None):
+	def add_record( self, sequence_hash = None , kegg_ontology = None , kegg_mapp = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None , immediate_commit = True):
 
 		incoming_dict =  locals()
 		
 		del incoming_dict['self']
 		
+		for k,v in incoming_dict.items():
+			if isinstance(v,list):
+				incoming_dict[k] = c_dump(v)
+
+				
 
 
 		required = ['sequence']
@@ -84,29 +89,32 @@ class genes(object):
 		if NCBItaxID == None:
 			logger.warn("Providing an NCBItaxID to add_record() is strongly suggested")
 
-		
 		incoming_dict['sequence_hash'] = hashlib.sha512('sequence').hexdigest()
-#		We've gotten all the information we're going to get at this point
-#		Let's see if we've gotten this hash before
-		lookup_query = 'select * FROM genes where `sequence_hash` = \'%s\'' % incoming_dict['sequence_hash']
-
-		self.sq3_cursor.execute(lookup_query)
-		rows = self.sq3_cursor.fetchall()
-		rows_selected = len(rows) 
-		assert 0 <= rows_selected <= 1 
+		insert_dict = {i:j for i,j in incoming_dict.items() if j != []}
+		insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
 		
-		if rows_selected == 0:
-			#simple insert
-			insert_dict = {i:j for i,j in incoming_dict.items() if j != []}
-			insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
+		
+# #		We've gotten all the information we're going to get at this point
+# #		Let's see if we've gotten this hash before
+# 		lookup_query = 'select * FROM genes where `sequence_hash` = \'%s\'' % incoming_dict['sequence_hash']
 
-		if rows_selected == 1:
-			selected_dict = dict(zip(rows[0].keys(),rows[0]))
-			insert_dict = merge_insert_dicts(selected_dict,incoming_dict)
-			delete_statement ='DELETE FROM genes WHERE `sequence_hash` = \'%s\' ' % incoming_dict['sequence_hash']
-			self.sq3_cursor.execute(delete_statement)
-			self.sq3_connection.commit()
-			insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
+# 		self.sq3_cursor.execute(lookup_query)
+# 		rows = self.sq3_cursor.fetchall()
+# 		rows_selected = len(rows) 
+# 		assert 0 <= rows_selected <= 1 
+		
+# 		if rows_selected == 0:
+# 			#simple insert
+# 			insert_dict = {i:j for i,j in incoming_dict.items() if j != []}
+# 			insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
+
+# 		if rows_selected == 1:
+# 			selected_dict = dict(zip(rows[0].keys(),rows[0]))
+# 			insert_dict = merge_insert_dicts(selected_dict,incoming_dict)
+# 			delete_statement ='DELETE FROM genes WHERE `sequence_hash` = \'%s\' ' % incoming_dict['sequence_hash']
+# 			self.sq3_cursor.execute(delete_statement)
+# 			self.sq3_connection.commit()
+# 			insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
 
 			
 		try:
@@ -114,7 +122,8 @@ class genes(object):
 		except sql.Error as e:
 			logger.warn(e)
 			raise
-		self.sq3_connection.commit()
+		if immediate_commit == True :
+			self.sq3_connection.commit()
 
 
 	def __del__(self):
@@ -127,7 +136,8 @@ class genes(object):
 		self.sq3_connection.commit()
 		self.sq3_connection.close()
 	
-
+	def genes_from_dat(self , file,):
+		pass
 
 class compounds(object):
 	"""base class for compounds"""
@@ -188,7 +198,6 @@ def merge_insert_dicts(dict1 , dict2):
 			return_dict[k] = c_dump(list(tmp_set))
 		
 	return_dict = {i:j for i,j in return_dict.items() if j != None}
-	print(return_dict)
 	return return_dict
 
 def c_dump(x):
@@ -206,4 +215,18 @@ def c_dump(x):
 if __name__ == '__main__':
 	logging.basicConfig()
 	database = genes()
-	
+
+	import uuid
+
+	for i in range(64000000):
+		if i % 1000 == 0:
+			logging.warn('%s inserts completed' % i)
+		thisrecord = {
+				'sequence' : str(uuid.uuid4()),
+				'kegg_ontology' : str(uuid.uuid4()),
+				'go_term' : str(uuid.uuid4()),
+				}
+
+		database.add_record(**thisrecord)
+
+
