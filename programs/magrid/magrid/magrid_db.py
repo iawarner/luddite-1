@@ -114,6 +114,7 @@ class genes(object):
 		except sql.Error as e:
 			logger.warn(e)
 			raise
+		self.sq3_connection.commit()
 
 
 	def __del__(self):
@@ -135,13 +136,13 @@ class compounds(object):
 		self.base_name = base_name
 
 def merge_insert_dicts(dict1 , dict2):
-
 	return_dict = {}
 	keys = set()
 
 	temporary_dict = dict1.copy()
 	temporary_dict.update(dict2)
 	dict2 = temporary_dict
+
 
 	for k,v in dict1.items():
 		try:
@@ -164,7 +165,7 @@ def merge_insert_dicts(dict1 , dict2):
 
 	for k in keys:
 		if dict1[k] == [] and dict2[k] == []:
-			pass
+			return_dict[k]= None
 		elif dict1[k] == []:
 			return_dict[k] = dict2[k]
 		elif dict2[k] == []:
@@ -172,13 +173,21 @@ def merge_insert_dicts(dict1 , dict2):
 		elif dict1[k] == dict2[k]:
 			return_dict[k] = dict1[k]
 		else:
-			assert type(dict1[k]) == type(dict2[k])
-			if isinstance(dict1[k],list):
-				tmp_set = set([dict1[k],dict2[k]])
-				return_dict[k] = c_dump(list(tmp_set))
-		
+			
+			if isinstance(dict1[k],str):
+				dict1[k] = [dict1[k]]
+			if isinstance(dict2[k],str):
+				dict2[k] = [dict2[k]]
 
-	return_dict = {i:j for i,j in return_dict.items() if j != []}
+			tmp_set = set()
+			for t in dict1[k]:
+				tmp_set.add(t)
+			for t in dict2[k]:
+				tmp_set.add(t)
+
+			return_dict[k] = c_dump(list(tmp_set))
+		
+	return_dict = {i:j for i,j in return_dict.items() if j != None}
 	print(return_dict)
 	return return_dict
 
@@ -197,18 +206,4 @@ def c_dump(x):
 if __name__ == '__main__':
 	logging.basicConfig()
 	database = genes()
-	thisrecord = {
-			'sequence' : 'ATGCGHGHG',
-			'kegg_ontology' : 'ko:8675309',
-			'go_term' : 'go:GOTERM',
-			}
-
-	database.add_record(**thisrecord)
-
-	thisrecord = {
-			'sequence' : 'ATGCGHGHG',
-			'kegg_ontology' : 'ko:8675308',
-			'go_term' : 'go:GOTERM2',
-			}
-
 	
