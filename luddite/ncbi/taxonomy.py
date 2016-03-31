@@ -272,7 +272,11 @@ class ncbiTaxonomy(object):
 			logger.warn(e)
 			raise
 
-		return taxID[0].encode("ascii")
+		if taxID is None:
+				return False
+		else:
+				return taxID[0].encode("ascii")
+		
 
 	def get_string(self , taxID):
 		"""Summary
@@ -291,8 +295,12 @@ class ncbiTaxonomy(object):
 		except sqlite3.Error as e:
 			logger.warn(e)
 			raise
-
-		return taxonomy[0].encode("ascii")
+		
+		if taxonomy is None:
+			return False
+		else:
+			return taxonomy[0].encode("ascii")
+		
 
 
 	def get_taxa(self , taxID , level):
@@ -314,10 +322,16 @@ class ncbiTaxonomy(object):
 				logger.warn(e)
 				raise
 
-			return taxonomy[0].encode("ascii")			
+			if taxonomy is None:
+				return False
+			else:
+				return taxonomy[0].encode("ascii")			
 		else :
 			logger.warn("from ncbiTaxonomy.get_taxa(): level %s , doesn't exist" % level)
 			return None
+
+
+
 
 	def __del__(self):
 		"""Summary
@@ -375,3 +389,4 @@ def set_sq3_columns(filename):
 
 if __name__ == '__main__':
 	taxonomy = ncbiTaxonomy()
+	print(taxonomy.get_string(600))
