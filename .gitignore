@@ -1,6 +1,7 @@
 #Sqlite TABLES
 
 *.sq3
+*.sq3-journal
 
 #common informatics formats 
 
