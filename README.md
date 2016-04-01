@@ -53,24 +53,48 @@ The luddite directory is the luddite package and contains all of the sub package
 The programs directory will contain individual directories for each lab specific programs/workflows that we create. These are for programs that we believe as a lab will be used largely by other people and hopefully will be actively maintained. 
 
 ```
+.
+├── Dependencies.md
+├── .gitignore
 ├── ISSUE_TEMPLATE
-├── luddite/
-│   ├── __init__.py
-│   ├── package/
-│   |   ├── module.py
-│	  │   └──__init__.py
-│   ├── package/
-│	  │	  ├── module.py
-│	  │	  └──__init__.py
-│   └── package/
-│		     ├── module.py
-│		     └──__init__.py
-│
-├── programs/
-│   └── program_name/
-│		     ├── program.py
-│		     └── README.md
-│
-└── README.md
+├── luddite
+│   ├── .empty
+│   ├── __init__.py
+│   ├── ncbi
+│   │   ├── __init__.py
+│   │   └── taxonomy.py
+│   ├── parasail
+│   │   ├── __init__.py
+│   │   └── protein.py
+│   ├── parsers
+│   │   ├── dat.py
+│   │   ├── fasta.py
+│   │   ├── gff3.py
+│   │   └── __init__.py
+│   ├── prokka
+│   │   ├── __init__.py
+│   │   └── stats.py
+│   ├── uniprot
+│   │   ├── __init__.py
+│   │   └── uniprot.py
+│   └── utils
+│       ├── __init__.py
+│       └── openany.py
+├── programs
+│   ├── magrid
+│   │   ├── magrid
+│   │   ├── Makefile
+│   │   ├── README.md
+│   │   ├── requirements.txt
+│   │   ├── setup.py
+│   │   ├── tests
+│   │   └── VERSION
+│   └── splatter
+│       └── .empty
+├── README.md
+├── test_files
+│   ├── test.fasta
+│   └── test.gff3
+└── test.py
 
 ```
