@@ -103,4 +103,5 @@ The programs directory will contain individual directories for each lab specific
 # FAQs
 
 * Why are we using Google style standards explicitly ?
+ 
 > Because they've been kind enough to write and publish them. 
