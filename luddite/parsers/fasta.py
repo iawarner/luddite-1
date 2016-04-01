@@ -5,7 +5,7 @@ from __future__ import absolute_import
 
 from ..utils import openany
 
-class fasta (object):
+class file (object):
 	"""
 	The fasta class is a base class for interacting with FASTA files
 	"""

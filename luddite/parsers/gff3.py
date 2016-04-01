@@ -3,7 +3,7 @@ from re import *
 
 gff_regex = compile('^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)')
 
-class gff3(object):
+class file(object):
     """
     A class for parsing gff3 format files.
     """
@@ -43,8 +43,3 @@ def parse(line):
             'strand'     : strand,
             'phase'      : phase,
             'attributes' : attributes}
-
-if __name__ == '__main__':
-    gff = gff3('/Users/Marina/Desktop/test.gff')
-    for record in gff.read():
-        print '{}'.format(record)

@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 import re
 import logging
+from ..utils import openany
 logger = logging.getLogger(__name__)
-print(__name__)
 
 
 
