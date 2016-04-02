@@ -12,7 +12,7 @@ import json
 logger = logging.getLogger(__name__)
 
 from config import MAGRID_DB_PATH
-
+from luddite.parsers import dat
 
 
 class genes(object):
@@ -53,7 +53,7 @@ class genes(object):
 		self.sq3_connection = sql.connect(self.database_sqlite_file)
 		self.sq3_connection.row_factory	= sql.Row
 		self.sq3_cursor		= self.sq3_connection.cursor()
-		self.sq3_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT, genus TEXT, species TEXT, NCBItaxID INT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_mapp TEXT , sequence TEXT)")
+		self.sq3_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT, genus TEXT, species TEXT, NCBItaxID INT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_map TEXT , sequence TEXT)")
 		self.sq3_connection.commit()
 
 #	Connect to the FASTA database
@@ -61,17 +61,21 @@ class genes(object):
 
 
 
-	def add_record( self, sequence_hash = None , kegg_ontology = None , kegg_mapp = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None , immediate_commit = True):
+	def add_record( self, sequence_hash = None , kegg_ontology = None , kegg_map = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None , immediate_commit = True , **kwargs):
 
-		incoming_dict =  locals()
-		
-		del incoming_dict['self']
+		incoming_dict = {
+			'sequence' 		: sequence,
+			'kegg_ontology' : kegg_ontology,
+			'kegg_reaction' : kegg_reaction,
+			'kegg_map' 		: kegg_map,
+			'go_term' 		: go_term,
+			'NCBItaxID' 	: NCBItaxID
+			}
+	
 		
 		for k,v in incoming_dict.items():
 			if isinstance(v,list):
 				incoming_dict[k] = c_dump(v)
-
-				
 
 
 		required = ['sequence']
@@ -89,11 +93,11 @@ class genes(object):
 		if NCBItaxID == None:
 			logger.warn("Providing an NCBItaxID to add_record() is strongly suggested")
 
-		incoming_dict['sequence_hash'] = hashlib.sha512('sequence').hexdigest()
+		incoming_dict['sequence_hash'] = hashlib.sha512(sequence).hexdigest()
 		insert_dict = {i:j for i,j in incoming_dict.items() if j != []}
 		insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
 		
-		
+	# HOLY SHIT THIS WAS A TERRIBLE IDEA IN RETROSPECT - adding a completely seperate database reduction step 
 # #		We've gotten all the information we're going to get at this point
 # #		Let's see if we've gotten this hash before
 # 		lookup_query = 'select * FROM genes where `sequence_hash` = \'%s\'' % incoming_dict['sequence_hash']
@@ -136,8 +140,21 @@ class genes(object):
 		self.sq3_connection.commit()
 		self.sq3_connection.close()
 	
-	def genes_from_dat(self , file,):
-		pass
+	def add_dat_file(self,file):
+		from luddite.parsers import dat
+		file = dat.file(file)
+		#sequence_hash = None , kegg_ontology = None , kegg_mapp = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None , immediate_commit = True
+		for record in file.read():
+			if not record == None:
+				self.add_record( sequence = record['sequence'],
+								 kegg_ontology = record['kegg_ontology'],
+								 go_term = record['go_term'],
+								 NCBItaxID = record['NCBItaxID'],
+								 immediate_commit = False
+									)
+
+
+		self.sq3_connection.commit()
 
 class compounds(object):
 	"""base class for compounds"""
@@ -215,18 +232,10 @@ def c_dump(x):
 if __name__ == '__main__':
 	logging.basicConfig()
 	database = genes()
+	database.add_dat_file('/home/dstorey/Desktop/luddite/luddite/uniprot/uniprot_trembl_viruses.dat.gz')
 
-	import uuid
 
-	for i in range(64000000):
-		if i % 1000 == 0:
-			logging.warn('%s inserts completed' % i)
-		thisrecord = {
-				'sequence' : str(uuid.uuid4()),
-				'kegg_ontology' : str(uuid.uuid4()),
-				'go_term' : str(uuid.uuid4()),
-				}
 
-		database.add_record(**thisrecord)
+
 
 

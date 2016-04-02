@@ -23,15 +23,22 @@ KOregex=re.compile	("DR\s+ KO;(.*?)\.\n",re.MULTILINE|re.DOTALL)
 
 SQregex=re.compile("SQ\s+SEQUENCE\s+\d+\s+AA;\s+\d+\s+MW;\s+(.*)\s+CRC64;\n([\t[A-Z|\s+]+\s*]*)",re.MULTILINE|re.DOTALL)
 
-class DAT(object):
+class file(object):
 	"""Base class for parsing DAT files"""
 	def __init__(self, filename):
 		
 		self.filename = filename
 		self.file = openany(self.filename)
 
+	def __repr__(self):
+		"""Summary
+		
+		Returns:
+		    TYPE: Description
+		"""
+		return '{}'.format(self.file)
 
-	def read (self):
+	def read(self):
 		"""
 		A dat file iterator , reads one record at a time
 		
@@ -40,14 +47,13 @@ class DAT(object):
 		"""
 
 		buff = ''
-		record_break = "//\n>"
+		record_break = "//\n"
 
 		while True:
 			while record_break in buff:
 				position = buff.index(record_break)
-				yield(parse(buff[:position]))
+				yield parse(buff[:position])
 				buff = buff[position+len(record_break):]
-
 			chunk = self.file.read(4096)
 			if not chunk:
 				yield parse(buff)
@@ -61,7 +67,6 @@ def parse(record):
 	"""
 	Get the ID line , and AA length for internal checking
 	"""
-
 	if not record:
 		return None
 
@@ -156,36 +161,17 @@ def parse(record):
 		sequence = sequence.translate(None," ")
 		sequence = sequence.translate(None,"\n")
 	
-	"""
-	We need to raise exceptions if we need to.
-	"""
-
-	if not accession:
-		warn("No accession value!\n",record)
-		return None
 
 	
-	if not OCstring:
-		warn("No OC string defined!\n",record)
-		return None
-
-	if not ncbiTaxID:
-		warn("No NCBI taxonomy ID defined!\n",record)
-		return None
-
-	if not sequence :
-		warn("No sequence value!\n",record)
-		return None
-
 	
-	return { 	'accession'	: accession , 
-			  	'NCBI_TaxID': ncbiTaxID,
+	
+	return_struct =  { 	'accession'	: accession , 
+			  	'NCBItaxID': ncbiTaxID,
 			  	'sequence' 	: sequence,			
 			 	'BioCyc'	: BioCyc_ID,
-			 	'GO_codes'	: GO_codes,
-				'KEGG_IDs'	: KEGG_IDs,
-				'KO_IDs'	: KO_IDs
+			 	'go_term'	: GO_codes,
+				'kegg_ids'	: KEGG_IDs,
+				'kegg_ontology'	: KO_IDs
 				}
+	return return_struct
 
-if __name__ == '__main__':
-	print('yay')
