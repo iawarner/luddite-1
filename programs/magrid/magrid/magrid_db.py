@@ -10,10 +10,9 @@ import hashlib
 import sqlite3 as sql
 import cPickle as pickle
 import gzip
-import itertools
 import json
 import tempfile
-
+import itertools
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +65,7 @@ class genes(object):
 		self.sq3_connection = sql.connect(self.database_sqlite_file)
 		self.sq3_connection.row_factory	= sql.Row
 		self.sq3_cursor		= self.sq3_connection.cursor()
-		self.sq3_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT, genus TEXT, species TEXT, NCBItaxID INT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_map TEXT , sequence TEXT)")
+		self.sq3_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT, genus TEXT, species TEXT, NCBItaxID TEXT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_map TEXT , sequence TEXT)")
 		self.sq3_connection.commit()
 
 		
@@ -170,6 +169,7 @@ class genes(object):
 		Returns:
 		    void 
 		"""
+# First we handle the fastq file 
 		unique_hash = set()
 		redundant_file = fasta.file(self.database_fasta_file)
 		temp = gzip.open(self.database_temp_file,'wb')
@@ -181,7 +181,50 @@ class genes(object):
 		
 		os.rename(self.database_temp_file , self.database_fasta_file)
 
+# Now the sqlite (http://stackoverflow.com/a/10856450)
+		from StringIO import StringIO
 
+		tempfile = StringIO()
+		for line in self.sq3_connection.iterdump():
+			tempfile.write('%s\n' % line)
+		tempfile.seek(0)
+
+		sq3_temp_connection 	= sql.connect(self.database_temp_file)
+		sq3_temp_cursor 	= sq3_temp_connection.cursor()
+		sq3_temp_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT, genus TEXT, species TEXT, NCBItaxID TEXT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_map TEXT , sequence TEXT)")
+		sq3_temp_connection.commit()
+
+		sq3_memory_connection = sql.connect(":memory:")
+		sq3_memory_cursor = sq3_memory_connection.cursor()
+		sq3_memory_cursor.executescript(tempfile.read())
+		sq3_memory_connection.commit()
+		sq3_memory_connection.row_factory = sql.Row
+
+		sq3_memory_cursor.execute('ATTACH \'%s\' AS reduced' % self.database_temp_file)
+
+		for h in unique_hash:
+			sq3_memory_cursor.execute('SELECT * FROM genes WHERE `sequence_hash` = \'%s\'' % h)
+			rows = sq3_memory_cursor.fetchall()
+			rows_selected = len(rows)
+
+			columns = tuple ([c[0] for c in sq3_memory_cursor.description])
+			merge_dict = dict.fromkeys(columns)
+			
+			for r in rows:
+				r=[x if x else None for x in r ]
+				incoming = dict(zip(columns,r))
+				merge_dict = merge_insert_dicts(merge_dict,incoming)
+			merge_dict = {i:j for i,j in merge_dict.items() if j != []}
+			insert = 'INSERT INTO genes({}) VALUES ({})'.format(', '.join(merge_dict.keys()),', '.join('?' * len(merge_dict)))
+			try:
+				sq3_temp_cursor.execute(insert,merge_dict.values())
+			except sql.Error as e:
+				print merge_dict
+				logger.warn(e)
+				raise
+			sq3_temp_connection.commit()
+		
+		sq3_temp_connection.close()
 		
 
 		
@@ -233,58 +276,56 @@ def merge_insert_dicts(dict1 , dict2):
 	Returns:
 	    TYPE: Description
 	"""
+
 	return_dict = {}
 	keys = set()
 
+	if dict1 == None:
+		return dict2
+	
 	temporary_dict = dict1.copy()
 	temporary_dict.update(dict2)
 	dict2 = temporary_dict
 
+	temporary_dict = dict2.copy()
+	temporary_dict.update(dict1)
+	dict1 = temporary_dict
 
 	for k,v in dict1.items():
 		try:
 			dict1[k]=json.loads(v)
+			dict1[k]=[str(x) for x in dict1[k]]
 		except (TypeError, ValueError):
 			dict1[k] = v
-		if isinstance(dict1[k], unicode):
-			dict1[k] = str(dict1[k])
 		keys.add(k)
 
 	for k,v in dict2.items():
 		try: 
 			dict2[k]=json.loads(v)
+			dict2[k] = [str(x) for x in dict2[k]]
 		except (TypeError, ValueError):
 			dict2[k]=v
-		if isinstance(dict2[k], unicode):
-			dict2[k] = str(dict2[k])
 		keys.add(k)
 
-
 	for k in keys:
+	
+
 		if dict1[k] == [] and dict2[k] == []:
 			return_dict[k]= None
-		elif dict1[k] == []:
+		elif dict1[k] == [] or dict1[k] == None:
 			return_dict[k] = dict2[k]
-		elif dict2[k] == []:
+		elif dict2[k] == [] or dict2[k] == None:
 			return_dict[k] = dict1[k]
 		elif dict1[k] == dict2[k]:
 			return_dict[k] = dict1[k]
 		else:
-			
-			if isinstance(dict1[k],str):
-				dict1[k] = [dict1[k]]
-			if isinstance(dict2[k],str):
-				dict2[k] = [dict2[k]]
+			print dict1[k]
+			print dict2[k]	
+			tmp_set = dict2[k] + dict1[k]
+			print tmp_set
 
-			tmp_set = set()
-			for t in dict1[k]:
-				tmp_set.add(t)
-			for t in dict2[k]:
-				tmp_set.add(t)
+#			return_dict[k] = c_dump(list(tmp_set))
 
-			return_dict[k] = c_dump(list(tmp_set))
-		
-	return_dict = {i:j for i,j in return_dict.items() if j != None}
 	return return_dict
 
 def c_dump(x):
@@ -304,7 +345,7 @@ def c_dump(x):
 if __name__ == '__main__':
 	logging.basicConfig()
 	database = genes()
-	#database.add_dat_file('/home/dstorey/Desktop/luddite/luddite/uniprot/uniprot_trembl_viruses.dat.gz')
+	database.add_dat_file('../../../test_files/test.dat.bz2')
 	database.pack()
 
 
