@@ -1,3 +1,8 @@
+"""Summary
+
+Attributes:
+    logger (TYPE): Description
+"""
 import sys
 import os
 import logging
@@ -7,23 +12,31 @@ import cPickle as pickle
 import gzip
 import itertools
 import json
+import tempfile
 
 
 logger = logging.getLogger(__name__)
 
 from config import MAGRID_DB_PATH
 from luddite.parsers import dat
-
+from luddite.parsers import fasta
 
 class genes(object):
-	"""base class for genes database"""
+	"""base class for genes database
+	"""
 	def __init__(self, base_name = 'standard' , nrlevel = 100 , taxonomic_level = -1):
-
+		"""Summary
+		
+		Args:
+		    base_name (str, optional): The name of the database (default = 'standard')
+		    nrlevel (int, optional): reduction level (default = nr100)
+		    taxonomic_level (TYPE, optional): Taxonomic level to fileter at (defualt = -1 / root)
+		"""
 		self.base_name = base_name
 		self.gene_database_path = os.path.abspath(os.path.join(MAGRID_DB_PATH,base_name))
 
 #	Set all of our paths
-
+		self.database_temp_file   = os.path.abspath(os.path.join(self.gene_database_path,base_name + '.tmp'))
 		self.database_config_file = os.path.abspath(os.path.join(self.gene_database_path,base_name + '.config'))
 		self.database_sqlite_file = os.path.abspath(os.path.join(self.gene_database_path,base_name + '.sq3'))
 		self.database_fasta_file  = os.path.abspath(os.path.join(self.gene_database_path,base_name + '.fasta.gz'))
@@ -56,13 +69,27 @@ class genes(object):
 		self.sq3_cursor.execute("CREATE TABLE IF NOT EXISTS genes ( sequence_hash TEXT, genus TEXT, species TEXT, NCBItaxID INT, kegg_ontology TEXT , kegg_reaction TEXT , go_term TEXT,  kegg_map TEXT , sequence TEXT)")
 		self.sq3_connection.commit()
 
-#	Connect to the FASTA database
-		self.fasta_connection = gzip.open(self.database_fasta_file,"ab")	
+		
 
 
 
-	def add_record( self, sequence_hash = None , kegg_ontology = None , kegg_map = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None , immediate_commit = True , **kwargs):
-
+	def add_record( self, sequence_hash = None , kegg_ontology = None , kegg_map = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None , immediate_commit = True):
+		"""
+		Add a single record to the current database
+		
+		Args:
+		    sequence_hash (None, optional): the hash of the sequence (calculated as the 512-sha by default)
+		    kegg_ontology (None, optional): KEGG ontology(ies) (can be a list)
+		    kegg_map (None, optional): KEGG map(s) (can be a list)
+		    kegg_reaction (None, optional): KEGG reaction(s) (can be a list)
+		    go_term (None, optional): Gene Ontology term(s) (can be a list)
+		    sequence (None, required): Protein sequence
+		    NCBItaxID (None, optional): NCBI taxonomic id 
+		    immediate_commit (bool, optional): Should a commit be made after insert.
+		
+		Returns:
+			void
+		"""
 		incoming_dict = {
 			'sequence' 		: sequence,
 			'kegg_ontology' : kegg_ontology,
@@ -97,29 +124,6 @@ class genes(object):
 		insert_dict = {i:j for i,j in incoming_dict.items() if j != []}
 		insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
 		
-	# HOLY SHIT THIS WAS A TERRIBLE IDEA IN RETROSPECT - adding a completely seperate database reduction step 
-# #		We've gotten all the information we're going to get at this point
-# #		Let's see if we've gotten this hash before
-# 		lookup_query = 'select * FROM genes where `sequence_hash` = \'%s\'' % incoming_dict['sequence_hash']
-
-# 		self.sq3_cursor.execute(lookup_query)
-# 		rows = self.sq3_cursor.fetchall()
-# 		rows_selected = len(rows) 
-# 		assert 0 <= rows_selected <= 1 
-		
-# 		if rows_selected == 0:
-# 			#simple insert
-# 			insert_dict = {i:j for i,j in incoming_dict.items() if j != []}
-# 			insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
-
-# 		if rows_selected == 1:
-# 			selected_dict = dict(zip(rows[0].keys(),rows[0]))
-# 			insert_dict = merge_insert_dicts(selected_dict,incoming_dict)
-# 			delete_statement ='DELETE FROM genes WHERE `sequence_hash` = \'%s\' ' % incoming_dict['sequence_hash']
-# 			self.sq3_cursor.execute(delete_statement)
-# 			self.sq3_connection.commit()
-# 			insert = 'INSERT OR ABORT INTO genes({}) VALUES ({})'.format(', '.join(insert_dict.keys()),', '.join('?' * len(insert_dict)))
-
 			
 		try:
 			self.sq3_cursor.execute(insert,insert_dict.values())
@@ -129,18 +133,21 @@ class genes(object):
 		if immediate_commit == True :
 			self.sq3_connection.commit()
 
+		with gzip.open(self.database_fasta_file,'ab') as fasta:
+			fasta.write('>'+incoming_dict['sequence_hash']+os.linesep+sequence+os.linesep)
 
-	def __del__(self):
-		"""
-		Destructor , explicit close
-		
-		Returns:
-			void
-		"""
-		self.sq3_connection.commit()
-		self.sq3_connection.close()
 	
 	def add_dat_file(self,file):
+		"""
+		Adds an entire UniProt DAT file to the database. Delays a call to commit until the entire 
+		DAT file is read in.
+
+		Args:
+		    file (TYPE): Path to UniProt DAT file
+		
+		Returns:
+		    Void
+		"""
 		from luddite.parsers import dat
 		file = dat.file(file)
 		#sequence_hash = None , kegg_ontology = None , kegg_mapp = None , kegg_reaction = None , go_term = None , sequence = None , NCBItaxID = None , immediate_commit = True
@@ -156,13 +163,76 @@ class genes(object):
 
 		self.sq3_connection.commit()
 
-class compounds(object):
-	"""base class for compounds"""
-	def __init__(self, base_name = 'standard'):
+	def pack(self):
+		"""
+		Packs the fasta and sqlite databases to remove redundancy and merge sqlite columns
+
+		Returns:
+		    void 
+		"""
+		unique_hash = set()
+		redundant_file = fasta.file(self.database_fasta_file)
+		temp = gzip.open(self.database_temp_file,'wb')
 		
+		for record in redundant_file.read():
+			if not record['header'] in unique_hash :
+				unique_hash.add(record['header'])
+				temp.write('>'+record['header']+os.linesep+record['sequence']+os.linesep)
+		
+		os.rename(self.database_temp_file , self.database_fasta_file)
+
+
+		
+
+		
+
+
+
+
+		
+
+	def __del__(self):
+		"""
+		Destructor , explicit close
+		
+		Returns:
+		    void
+		"""
+		self.sq3_connection.commit()
+		self.sq3_connection.close()
+
+ 		
+
+
+
+
+
+
+
+
+
+
+class compounds(object):
+	"""base class for compounds
+	"""
+	def __init__(self, base_name = 'standard'):
+		"""Summary
+		
+		Args:
+		    base_name (str, optional): Description
+		"""
 		self.base_name = base_name
 
 def merge_insert_dicts(dict1 , dict2):
+	"""Summary
+	
+	Args:
+	    dict1 (TYPE): Description
+	    dict2 (TYPE): Description
+	
+	Returns:
+	    TYPE: Description
+	"""
 	return_dict = {}
 	keys = set()
 
@@ -222,18 +292,20 @@ def c_dump(x):
 	creates a compact json dump
 	
 	Args:
-	    x (): any python data structure
+	    x: any python data structure
 	
 	Returns:
 	    string: compact json dump of  data structure
-	"""
+	"""		
 	return json.dumps(x, separators=(',',':'))
+
+
 
 if __name__ == '__main__':
 	logging.basicConfig()
 	database = genes()
-	database.add_dat_file('/home/dstorey/Desktop/luddite/luddite/uniprot/uniprot_trembl_viruses.dat.gz')
-
+	#database.add_dat_file('/home/dstorey/Desktop/luddite/luddite/uniprot/uniprot_trembl_viruses.dat.gz')
+	database.pack()
 
 
 
